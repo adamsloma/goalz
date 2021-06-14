@@ -8,8 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "10.2.0",
+    "@supabase/supabase-js": "^1.11.14",
+    "hashids": "^2.2.8",
+    "moment": "^2.29.1",
+    "next": "^10.2.3",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "reactstrap": "^8.9.0"
   }
 }
