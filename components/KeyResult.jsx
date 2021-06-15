@@ -3,17 +3,21 @@ import { Popover } from "reactstrap";
 import styles from "../styles/KeyResult.module.css";
 import moment from "moment";
 
-function WeekDetail({ days, onChange }) {
+function WeekDetail({ days, onChangeDay }) {
   return (
     <div>
       {/* a simple check box */}
-      {Object.keys(days).map((day, index) => {
+      {Object.keys(days).map( day => {
         return (
           <input 
             onClick={(e) => {e.stopPropagation();}}
             type="checkbox" 
-            // checked={days[day]}
-            onChange={(e) => { onChange(e) }}
+            checked={days[day]}
+            // somehow pass up the index of the day
+            onChange={(e) => {
+              // e.preventDefault();
+              onChangeDay(day);
+            }}
           />
         );
       })}
@@ -21,7 +25,7 @@ function WeekDetail({ days, onChange }) {
   )
 }
 
-function KRDetail({ hidden, weeks }) {
+function KRDetail({ hidden, weeks, onChangeDay }) {
 
   // determine the color of the week
   // green for you followed your goal
@@ -61,10 +65,9 @@ function KRDetail({ hidden, weeks }) {
   return (
     <div className={styles.weeklist}>
       {/* display a colored dot for each week */}
+      {/* week is of type object */}
       {weeks.map((week, index) => {
         const [popoverOpen, setPopoverOpen] = useState(false);
-        const toggle = () => setPopoverOpen(!popoverOpen);
-
         return (
         <>
           {/* represents the label for each week, and the clickable dot */}
@@ -75,16 +78,17 @@ function KRDetail({ hidden, weeks }) {
             onClick={(e) => {
               e.stopPropagation();
               // show week detail
-              toggle();
+              setPopoverOpen(!popoverOpen);
             }}
             style={weekStyle(week)}></div>
           </div>
-          <Popover placement="bottom" isOpen={popoverOpen} target={`dot__${index}`} toggle={toggle}>
+          <Popover placement="bottom"
+            isOpen={popoverOpen}
+            target={`dot__${index}`}>
             <WeekDetail
-            onChange={(e) => {
-              console.log(e.target.checked);
-            }}
-            days={week} />
+              days={week} 
+              onChangeDay={onChangeDay}
+            />
           </Popover>
         </>
         );
@@ -98,37 +102,51 @@ export default function KeyResult(props) {
   const [hidden, setHidden] = useState(true);
 
   // organize the days list into a list of weeks
-  const weeksList = []; // list of weeks
+  const weeks = []; // list of weeks
+
   const today = moment(props.insertedAt); // starting from when the goal was created (in supabase)
-  var week = {};
+  var days = {};
+
   for (var i = 1; i < 106; i++) { // for 15 weeks
     const nextDay = today.add(1, 'days'); // next day after last day
-    if (i % 7 === 0) {
-      weeksList.push(week);
-      week = {};
-    }
-    if (props.days.includes(nextDay.format())) {
-      week[nextDay.format()] = 1;
+    const date = nextDay.format().toString();
+
+    if (props.days.includes(date)) {
+      days[date] = 1;
     } else {
-      week[nextDay.format()] = 0;
+      days[date] = 0;
+    }
+
+    if (i % 7 === 0) {
+      weeks.push({...days});
+      days = {};
     }
   }
-
-  // populating state data ahead of time to avoid re-renders
-  const [weeks, setWeeks] = useState(weeksList);
 
   return (
     <li onClick={(e) => {
       e.preventDefault();
       setHidden(!hidden);
     }}>
-      <input onClick={(e) => e.stopPropagation()} onChange={(e) => props.onChangeName(e)} defaultValue={props.name} type="text" placeholder="Ex. Yoga every day"/>
-      <input onClick={(e) => e.stopPropagation()} onChange={(e) => props.onChangeUnit(e)} defaultValue={props.unit} type="text" placeholder="unit"/>
+      <input onClick={(e) => e.stopPropagation()} 
+        onChange={(e) => props.onChangeName(e)} 
+        defaultValue={props.name} 
+        type="text" 
+        placeholder="Ex. Yoga every day"/>
+      <input onClick={(e) => e.stopPropagation()} 
+        onChange={(e) => props.onChangeUnit(e)} 
+        defaultValue={props.unit} 
+        type="text" 
+        placeholder="unit"/>
       <button onClick={(e) => {
         e.stopPropagation();
         props.onDelete(e);
       }}>x</button>
-      {<KRDetail insertedAt={props.insertedAt}  weeks={weeks} hidden={hidden}></KRDetail>}
+      <KRDetail
+        insertedAt={props.insertedAt} 
+        weeks={weeks}
+        onChangeDay={props.onChangeDay}
+        hidden={hidden}></KRDetail>
     </li>
   );
 }

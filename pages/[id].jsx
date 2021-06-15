@@ -3,6 +3,7 @@ import KeyResult from "../components/KeyResult";
 import { useRouter } from "next/router";
 import Hashids from "hashids";
 import supabase from "../supabase.js";
+import moment from 'moment';
 
 function decrypt(id) {
   const constant = 786732452123;
@@ -26,7 +27,7 @@ async function fetchData(id) {
   
   const { data: fm, error: fmError } = await supabase
     .from('failure_modes')
-    .select('id, name')
+    .select('id, name, goal_id')
     .filter('goal_id', 'eq', goal.id);
   
   goal.key_results = kr;
@@ -76,7 +77,8 @@ export default function Goal({ data }) {
     const temp = goal;
     temp.key_results.push({
       name: "",
-      unit: ""
+      unit: "", 
+      goal_id: goal.id
     });
     setGoal({...temp});
   }
@@ -86,17 +88,76 @@ export default function Goal({ data }) {
     const temp = goal;
     temp.failure_modes.push({
       name: "",
+      goal_id: goal.id
     });
     setGoal({...temp});
   }
 
-  function save() {}
+  // save shit to supabase 
+  async function save(e) {
+    e.preventDefault();
+    console.log(goal);
+
+    // save goal data to goal table
+    const g = {
+      objective: goal.objective, 
+      category: goal.category,  
+      description: goal.description,
+      updated_at: moment().format().toString()
+    }
+    const { data: goalData , error: goalError } = await supabase
+      .from('goal')
+      .update(g)
+      .match({ id: goal.id });
+
+    // save kr data to kr table
+    goal.key_results.forEach( async (kr) => { 
+      const { data: krData , error: krError } = await supabase
+        .from('key_results')
+        .update(kr)
+        .match({ id: kr.id });
+    });
+    
+    // save fm data to fm table
+    goal.failure_modes.forEach( async (fm) => {
+      const { data: fmData, error: fmError } = await supabase
+        .from('failure_modes')
+        .upsert(fm)
+    })
+  }
+
   return (
     <form onSubmit={save}>
       <h1>Objective</h1>
-        <label>Objective</label> <input type="text" defaultValue={goal.objective}/><br />
-        <label>Category</label> <input type="text"  defaultValue={goal.category}/> <br />
-        <label>Description</label> <br /> <textarea  defaultValue={goal.description} rows={4} cols={30}></textarea> 
+        <label>Objective</label> <input 
+          type="text" 
+          defaultValue={goal.objective} 
+          onChange={(e) => {
+            e.preventDefault();
+            const temp = goal;
+            temp.objective = e.target.value; 
+            setGoal({...temp});
+          }}/><br />
+        <label>Category</label> <input 
+          type="text"  
+          defaultValue={goal.category}
+          onChange={(e) => {
+            e.preventDefault();
+            const temp = goal;
+            temp.category= e.target.value; 
+            setGoal({...temp});
+          }}
+          /> <br />
+        <label>Description</label> <br /> <textarea  
+          defaultValue={goal.description} 
+          onChange={(e) => {
+            e.preventDefault();
+            const temp = goal;
+            temp.description= e.target.value; 
+            setGoal({...temp});
+          }}
+          rows={4} 
+          cols={30}></textarea> 
       <h1>Key Results</h1>
         {goal.key_results.map((kr, index) => {
           return <KeyResult
@@ -115,6 +176,19 @@ export default function Goal({ data }) {
               const temp = goal;
               temp.key_results[index].unit = e.target.value;
               setGoal({...temp});
+            }}
+            onChangeDay={(day) => {
+              const temp = goal;
+              if (!temp.key_results[index].days.includes(day))
+                temp.key_results[index].days.push(day);
+              // can you do it in one line 
+              else 
+                temp.key_results[index].days.splice(
+                  temp.key_results[index].days.indexOf(day),
+                  1
+                )
+              setGoal({...temp});
+              console.log(goal);
             }}
             onDelete={(e) => {
               e.preventDefault();
