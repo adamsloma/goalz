@@ -68,6 +68,7 @@ function KRDetail({ hidden, weeks, onChangeDay }) {
       {/* week is of type object */}
       {weeks.map((week, index) => {
         const [popoverOpen, setPopoverOpen] = useState(false);
+        
         return (
         <>
           {/* represents the label for each week, and the clickable dot */}

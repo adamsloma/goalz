@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import KeyResult from "../components/KeyResult";
-import { useRouter } from "next/router";
 import Hashids from "hashids";
 import supabase from "../supabase.js";
-import moment from 'moment';
+import { debounce } from 'debounce';
 
 function decrypt(id) {
   const constant = 786732452123;
@@ -43,7 +42,6 @@ export async function getServerSideProps({ params }) {
   const goal = await fetchData(id);
 
   if (!goal) {
-    // maybe something like a not found or something idk
     return {
       redirect: {
         destination: '/',
@@ -69,17 +67,26 @@ export function FailureMode(props) {
 }
 
 export default function Goal({ data }) {
-  const router = useRouter();
   const [goal, setGoal] = useState(data);
 
-  function addKeyResult(e) {
+  async function addKeyResult(e) {
     e.preventDefault();
-    const temp = goal;
-    temp.key_results.push({
+    // new key result
+    const kr = {
       name: "",
       unit: "", 
-      goal_id: goal.id
-    });
+      goal_id: goal.id,
+      days: []
+    };
+
+    // update supabase
+    const { data, error } = await supabase
+      .from('key_results')
+      .insert([kr]); 
+    
+    // update state
+    const temp = goal;
+    temp.key_results.push(data[0]);
     setGoal({...temp});
   }
 
@@ -97,33 +104,6 @@ export default function Goal({ data }) {
   async function save(e) {
     e.preventDefault();
     console.log(goal);
-
-    // save goal data to goal table
-    const g = {
-      objective: goal.objective, 
-      category: goal.category,  
-      description: goal.description,
-      updated_at: moment().format().toString()
-    }
-    const { data: goalData , error: goalError } = await supabase
-      .from('goal')
-      .update(g)
-      .match({ id: goal.id });
-
-    // save kr data to kr table
-    goal.key_results.forEach( async (kr) => { 
-      const { data: krData , error: krError } = await supabase
-        .from('key_results')
-        .update(kr)
-        .match({ id: kr.id });
-    });
-    
-    // save fm data to fm table
-    goal.failure_modes.forEach( async (fm) => {
-      const { data: fmData, error: fmError } = await supabase
-        .from('failure_modes')
-        .upsert(fm)
-    })
   }
 
   return (
@@ -134,27 +114,51 @@ export default function Goal({ data }) {
           defaultValue={goal.objective} 
           onChange={(e) => {
             e.preventDefault();
+            // update state 
             const temp = goal;
             temp.objective = e.target.value; 
             setGoal({...temp});
+            // update supabase
+            debounce(async () => {
+              const { data, error } = await supabase
+                .from('goal')
+                .update({ objective: temp.objective })
+                .match({ id: goal.id });
+            }, 1500)();
           }}/><br />
         <label>Category</label> <input 
           type="text"  
           defaultValue={goal.category}
           onChange={(e) => {
             e.preventDefault();
+            // update state
             const temp = goal;
             temp.category= e.target.value; 
             setGoal({...temp});
+            // update supabase
+            debounce(async () => {
+              const { data, error } = await supabase
+                .from('goal')
+                .update({ category: temp.category })
+                .match({ id: goal.id });
+            }, 1500)();
           }}
           /> <br />
         <label>Description</label> <br /> <textarea  
           defaultValue={goal.description} 
           onChange={(e) => {
             e.preventDefault();
+            // update state 
             const temp = goal;
             temp.description= e.target.value; 
             setGoal({...temp});
+            // update supabase 
+            debounce(async () => {
+              const { data, error } = await supabase
+                .from('goal')
+                .update({ description: temp.description })
+                .match({ id: goal.id }); 
+            }, 1500)();
           }}
           rows={4} 
           cols={30}></textarea> 
@@ -167,17 +171,34 @@ export default function Goal({ data }) {
             insertedAt={goal.inserted_at}
             onChangeName={(e) => {
               e.preventDefault();
+              // update state 
               const temp = goal;
               temp.key_results[index].name = e.target.value;
               setGoal({...temp});
+              // update supabase
+              debounce(async () => { 
+                const { data, error } = await supabase
+                  .from('key_results')
+                  .update({ name: temp.key_results[index].name })
+                  .match({ id: temp.key_results[index].id });
+              }, 1500)();
             }}
             onChangeUnit={(e) => {
               e.preventDefault();
+              // update state
               const temp = goal;
               temp.key_results[index].unit = e.target.value;
               setGoal({...temp});
+              // update supabase
+              debounce(async () => { 
+                const { data, error } = await supabase
+                  .from('key_results')
+                  .update({ unit: temp.key_results[index].unit })
+                  .match({ id: temp.key_results[index].id });
+              }, 1500)();
             }}
             onChangeDay={(day) => {
+              // update state
               const temp = goal;
               if (!temp.key_results[index].days.includes(day))
                 temp.key_results[index].days.push(day);
@@ -188,13 +209,25 @@ export default function Goal({ data }) {
                   1
                 )
               setGoal({...temp});
-              console.log(goal);
+              // update supabase
+              debounce(async () => {
+                const { data, error } = await supabase
+                  .from('key_results')
+                  .update({ days: temp.key_results[index].days })
+                  .match({ id: temp.key_results[index].id });
+              }, 1500)();
             }}
-            onDelete={(e) => {
+            onDelete={ async (e) => {
               e.preventDefault();
+              // update state
               const temp = goal;
               temp.key_results.splice(index, 1);
               setGoal({...temp});
+              // update supabase
+              const { data, error } = await supabase
+                .from('key_results')
+                .delete()
+                .match({ id: temp.key_results[index].id });
             }}
            />;
         })}
@@ -205,20 +238,33 @@ export default function Goal({ data }) {
             name={fm.name}
             onChange={(e) => {
               e.preventDefault();
+              // update state
               const temp = goal;
               temp.failure_modes[index].name = e.target.value;
               setGoal({...temp});
+              // update supabase
+              debounce(async () => {
+              const { data, error } = await supabase
+                .from('failure_modes')
+                .update({ name: temp.failure_modes[index].name })
+                .match({ id: temp.failure_modes[index].id });
+              }, 1500)();
             }}
-            onDelete={(e) => {
+            onDelete={ async (e) => {
               e.preventDefault();
+              // update state
               const temp = goal;
               temp.failure_modes.splice(index, 1);
               setGoal({...temp});
+              // update supabase
+              const { data, error } = await supabase
+                .from('failure_modes')
+                .delete()
+                .match({ id: temp.failure_modes[index].id });
             }}
           />;
         })}
         <button onClick={addFailureMode}>Add</button> <br />
-      <input type="submit" value="Save" />
     </form>
   )
 }
