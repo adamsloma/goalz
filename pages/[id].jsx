@@ -90,13 +90,23 @@ export default function Goal({ data }) {
     setGoal({...temp});
   }
 
-  function addFailureMode(e) {
+  async function addFailureMode(e) {
     e.preventDefault();
-    const temp = goal;
-    temp.failure_modes.push({
-      name: "",
+
+    //new failure mode 
+    const fm = { 
+      name: "", 
       goal_id: goal.id
-    });
+    };
+
+    // update supabase
+    const { data, error } = await supabase
+      .from('failure_modes')
+      .insert([fm]);
+
+    // update state
+    const temp = goal;
+    temp.failure_modes.push(data[0]);
     setGoal({...temp});
   }
 
@@ -219,15 +229,15 @@ export default function Goal({ data }) {
             }}
             onDelete={ async (e) => {
               e.preventDefault();
-              // update state
               const temp = goal;
-              temp.key_results.splice(index, 1);
-              setGoal({...temp});
               // update supabase
               const { data, error } = await supabase
                 .from('key_results')
                 .delete()
                 .match({ id: temp.key_results[index].id });
+              // update state
+              temp.key_results.splice(index, 1);
+              setGoal({...temp});
             }}
            />;
         })}
@@ -252,15 +262,15 @@ export default function Goal({ data }) {
             }}
             onDelete={ async (e) => {
               e.preventDefault();
-              // update state
               const temp = goal;
-              temp.failure_modes.splice(index, 1);
-              setGoal({...temp});
               // update supabase
               const { data, error } = await supabase
                 .from('failure_modes')
                 .delete()
                 .match({ id: temp.failure_modes[index].id });
+              // update state
+              temp.failure_modes.splice(index, 1);
+              setGoal({...temp});
             }}
           />;
         })}
