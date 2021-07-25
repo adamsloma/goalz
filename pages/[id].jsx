@@ -1,34 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import KeyResult from "../components/KeyResult";
 import Hashids from "hashids";
 import supabase from "../supabase.js";
-import { debounce } from 'debounce';
+import { debounce } from "debounce";
+import { CloseOutline } from "react-ionicons";
+import styles from "../styles/GoalDetail.module.css";
 
 function decrypt(id) {
   const constant = 786732452123;
   const hashids = new Hashids();
   const n = hashids.decode(id);
 
-  return n/constant;
+  return n / constant;
 }
 
 async function fetchData(id) {
   const { data: goal, error: goalError } = await supabase
-    .from('goal')
-    .select('id, objective, category, description, inserted_at')
-    .filter('id', 'eq', decrypt(id))
+    .from("goal")
+    .select("id, objective, category, description, inserted_at")
+    .filter("id", "eq", decrypt(id))
     .single();
 
   const { data: kr, error: krError } = await supabase
-    .from('key_results')
-    .select('id, name, unit, days')
-    .filter('goal_id', 'eq', goal.id);
-  
+    .from("key_result")
+    .select("id, name, unit, days")
+    .filter("goal_id", "eq", goal.id);
+
   const { data: fm, error: fmError } = await supabase
-    .from('failure_modes')
-    .select('id, name, goal_id')
-    .filter('goal_id', 'eq', goal.id);
-  
+    .from("failure_mode")
+    .select("id, name, goal_id")
+    .filter("goal_id", "eq", goal.id);
+
   goal.key_results = kr;
   goal.failure_modes = fm;
 
@@ -44,24 +46,39 @@ export async function getServerSideProps({ params }) {
   if (!goal) {
     return {
       redirect: {
-        destination: '/',
+        destination: "/",
         permanent: false,
       },
-    }
+    };
   } else {
     return {
       props: {
-        data: goal
+        data: goal,
       },
-    }
+    };
   }
 }
 
 export function FailureMode(props) {
   return (
     <li>
-      <input onChange={(e) => props.onChange(e)} defaultValue={props.name} type="text" placeholder="Ex. I'd rather watch TV"  />
-      <button onClick={(e) => props.onDelete(e)}>x</button>
+      <input
+        onChange={(e) => props.onChange(e)}
+        defaultValue={props.name}
+        type="text"
+        placeholder="Ex. I'd rather watch TV"
+      />
+      <CloseOutline
+        cssClasses={styles.deleteButton}
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onDelete(e);
+        }}
+        color={"#cd1818"}
+        title={""}
+        height="25px"
+        width="25px"
+      />
     </li>
   );
 }
@@ -74,43 +91,39 @@ export default function Goal({ data }) {
     // new key result
     const kr = {
       name: "",
-      unit: "", 
+      unit: "",
       goal_id: goal.id,
-      days: []
+      days: [],
     };
 
     // update supabase
-    const { data, error } = await supabase
-      .from('key_results')
-      .insert([kr]); 
-    
+    const { data, error } = await supabase.from("key_result").insert([kr]);
+
     // update state
     const temp = goal;
     temp.key_results.push(data[0]);
-    setGoal({...temp});
+    setGoal({ ...temp });
   }
 
   async function addFailureMode(e) {
     e.preventDefault();
 
-    //new failure mode 
-    const fm = { 
-      name: "", 
-      goal_id: goal.id
+    //new failure mode
+    const fm = {
+      name: "",
+      goal_id: goal.id,
     };
 
     // update supabase
-    const { data, error } = await supabase
-      .from('failure_modes')
-      .insert([fm]);
+    const { data, error } = await supabase.from("failure_mode").insert([fm]);
 
     // update state
     const temp = goal;
     temp.failure_modes.push(data[0]);
-    setGoal({...temp});
+    setGoal({ ...temp });
   }
 
-  // save shit to supabase 
+  // save shit to supabase
   async function save(e) {
     e.preventDefault();
     console.log(goal);
@@ -119,76 +132,84 @@ export default function Goal({ data }) {
   return (
     <form onSubmit={save}>
       <h1>Objective</h1>
-        <label>Objective</label> <input 
-          type="text" 
-          defaultValue={goal.objective} 
-          onChange={(e) => {
-            e.preventDefault();
-            // update state 
-            const temp = goal;
-            temp.objective = e.target.value; 
-            setGoal({...temp});
-            // update supabase
-            debounce(async () => {
-              const { data, error } = await supabase
-                .from('goal')
-                .update({ objective: temp.objective })
-                .match({ id: goal.id });
-            }, 1500)();
-          }}/><br />
-        <label>Category</label> <input 
-          type="text"  
-          defaultValue={goal.category}
-          onChange={(e) => {
-            e.preventDefault();
-            // update state
-            const temp = goal;
-            temp.category= e.target.value; 
-            setGoal({...temp});
-            // update supabase
-            debounce(async () => {
-              const { data, error } = await supabase
-                .from('goal')
-                .update({ category: temp.category })
-                .match({ id: goal.id });
-            }, 1500)();
-          }}
-          /> <br />
-        <label>Description</label> <br /> <textarea  
-          defaultValue={goal.description} 
-          onChange={(e) => {
-            e.preventDefault();
-            // update state 
-            const temp = goal;
-            temp.description= e.target.value; 
-            setGoal({...temp});
-            // update supabase 
-            debounce(async () => {
-              const { data, error } = await supabase
-                .from('goal')
-                .update({ description: temp.description })
-                .match({ id: goal.id }); 
-            }, 1500)();
-          }}
-          rows={4} 
-          cols={30}></textarea> 
+      <label>Objective</label>{" "}
+      <input
+        type="text"
+        defaultValue={goal.objective}
+        onChange={(e) => {
+          e.preventDefault();
+          // update state
+          const temp = goal;
+          temp.objective = e.target.value;
+          setGoal({ ...temp });
+          // update supabase
+          debounce(async () => {
+            const { data, error } = await supabase
+              .from("goal")
+              .update({ objective: temp.objective })
+              .match({ id: goal.id });
+          }, 1500)();
+        }}
+      />
+      <br />
+      <label>Category</label>{" "}
+      <input
+        type="text"
+        defaultValue={goal.category}
+        onChange={(e) => {
+          e.preventDefault();
+          // update state
+          const temp = goal;
+          temp.category = e.target.value;
+          setGoal({ ...temp });
+          // update supabase
+          debounce(async () => {
+            const { data, error } = await supabase
+              .from("goal")
+              .update({ category: temp.category })
+              .match({ id: goal.id });
+          }, 1500)();
+        }}
+      />{" "}
+      <br />
+      <label>Description</label> <br />{" "}
+      <textarea
+        defaultValue={goal.description}
+        onChange={(e) => {
+          e.preventDefault();
+          // update state
+          const temp = goal;
+          temp.description = e.target.value;
+          setGoal({ ...temp });
+          // update supabase
+          debounce(async () => {
+            const { data, error } = await supabase
+              .from("goal")
+              .update({ description: temp.description })
+              .match({ id: goal.id });
+          }, 1500)();
+        }}
+        rows={4}
+        cols={30}
+      ></textarea>
       <h1>Key Results</h1>
-        {goal.key_results.map((kr, index) => {
-          return <KeyResult
+      {goal.key_results.map((kr, index) => {
+        return (
+          <KeyResult
             name={kr.name}
             unit={kr.unit}
             days={kr.days}
             insertedAt={goal.inserted_at}
             onChangeName={(e) => {
               e.preventDefault();
-              // update state 
+              // update state
               const temp = goal;
               temp.key_results[index].name = e.target.value;
-              setGoal({...temp});
+              setGoal({ ...temp });
               // update supabase
-              debounce(async () => { 
+              debounce(async () => {
                 const { data, error } = await supabase
-                  .from('key_results')
+                  .from("key_result")
                   .update({ name: temp.key_results[index].name })
                   .match({ id: temp.key_results[index].id });
               }, 1500)();
@@ -198,11 +219,11 @@ export default function Goal({ data }) {
               // update state
               const temp = goal;
               temp.key_results[index].unit = e.target.value;
-              setGoal({...temp});
+              setGoal({ ...temp });
               // update supabase
-              debounce(async () => { 
+              debounce(async () => {
                 const { data, error } = await supabase
-                  .from('key_results')
+                  .from("key_result")
                   .update({ unit: temp.key_results[index].unit })
                   .match({ id: temp.key_results[index].id });
               }, 1500)();
@@ -212,69 +233,72 @@ export default function Goal({ data }) {
               const temp = goal;
               if (!temp.key_results[index].days.includes(day))
                 temp.key_results[index].days.push(day);
-              // can you do it in one line 
-              else 
+              // can you do it in one line
+              else
                 temp.key_results[index].days.splice(
                   temp.key_results[index].days.indexOf(day),
                   1
-                )
-              setGoal({...temp});
+                );
+              setGoal({ ...temp });
               // update supabase
               debounce(async () => {
                 const { data, error } = await supabase
-                  .from('key_results')
+                  .from("key_result")
                   .update({ days: temp.key_results[index].days })
                   .match({ id: temp.key_results[index].id });
               }, 1500)();
             }}
-            onDelete={ async (e) => {
+            onDelete={async (e) => {
               e.preventDefault();
               const temp = goal;
               // update supabase
               const { data, error } = await supabase
-                .from('key_results')
+                .from("key_result")
                 .delete()
                 .match({ id: temp.key_results[index].id });
               // update state
               temp.key_results.splice(index, 1);
-              setGoal({...temp});
+              setGoal({ ...temp });
             }}
-           />;
-        })}
-        <button onClick={addKeyResult}>Add</button>
+          />
+        );
+      })}
+      <button onClick={addKeyResult}>Add</button>
       <h1>Possible Failure Modes</h1>
-        {goal.failure_modes.map((fm, index) => {
-          return <FailureMode 
+      {goal.failure_modes.map((fm, index) => {
+        return (
+          <FailureMode
             name={fm.name}
             onChange={(e) => {
               e.preventDefault();
               // update state
               const temp = goal;
               temp.failure_modes[index].name = e.target.value;
-              setGoal({...temp});
+              setGoal({ ...temp });
               // update supabase
               debounce(async () => {
-              const { data, error } = await supabase
-                .from('failure_modes')
-                .update({ name: temp.failure_modes[index].name })
-                .match({ id: temp.failure_modes[index].id });
+                const { data, error } = await supabase
+                  .from("failure_mode")
+                  .update({ name: temp.failure_modes[index].name })
+                  .match({ id: temp.failure_modes[index].id });
               }, 1500)();
             }}
-            onDelete={ async (e) => {
+            onDelete={async (e) => {
               e.preventDefault();
               const temp = goal;
               // update supabase
               const { data, error } = await supabase
-                .from('failure_modes')
+                .from("failure_mode")
                 .delete()
                 .match({ id: temp.failure_modes[index].id });
               // update state
               temp.failure_modes.splice(index, 1);
-              setGoal({...temp});
+              setGoal({ ...temp });
             }}
-          />;
-        })}
-        <button onClick={addFailureMode}>Add</button> <br />
+          />
+        );
+      })}
+      <button onClick={addFailureMode}>Add</button> <br />
     </form>
-  )
+  );
 }

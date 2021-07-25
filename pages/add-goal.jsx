@@ -2,6 +2,7 @@ import { useRouter } from "next/router";
 import React, { useState } from "react";
 import { Button } from "reactstrap";
 import supabase from "../supabase";
+import styles from "../styles/Home.module.css";
 
 export default function GoalForm(props) {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function GoalForm(props) {
   });
 
   return (
-    <div style={{ margin: 20 }}>
+    <div className={styles.addGoal}>
       <label>Objective</label>
       <input
         onChange={(e) => {
@@ -42,7 +43,9 @@ export default function GoalForm(props) {
         }}
         defaultValue={goal.description}
       />
+      <br />
       <Button
+        className={styles.btn}
         onClick={async (e) => {
           e.preventDefault();
           const { data, error } = await supabase.from("goal").insert([
